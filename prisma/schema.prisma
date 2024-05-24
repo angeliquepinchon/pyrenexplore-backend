@@ -1,0 +1,152 @@
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Species {
+  id Int  @id @default(autoincrement())
+  category String
+  type String
+  scientificName String? @map(name: "scientific_name")
+  name String
+  habitat String?
+  findIt String? @map(name: "find_it")
+  description String?
+  behavior String?
+  lifeCycle String? @map(name: "life_cycle")
+  diet String?
+  photo String  @map(name: "photo_url")
+  status String?
+  addInformation String? @map(name: "add_information")
+
+  discoverys Discovery[]
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  firstName String @map(name: "first_name")
+  lastName String @map(name: "last_name")
+  pseudo  String @unique
+  email     String  @unique
+  password String 
+  agreedToTerms   Boolean  @default(false)
+  consentGivenAt  DateTime?
+  photo String?  @map(name: "photo_url")
+
+
+  discoveries  Discovery[]
+  projects Project[]
+  reviews Comment[]
+  likes Like[]
+  quizzes Quiz[]
+  articles Article[]
+}
+
+model Discovery {
+  id  Int @id @default(autoincrement())
+  type String
+  name String
+  photo String? @map(name: "photo_url")
+  weather String?
+  latitude Float?
+  longitude Float?
+  information String?
+  createdAt DateTime? @db.Timestamptz() @map(name:"created_at")
+
+  user User  @relation(fields: [id_user], references: [id])
+  id_user Int @unique
+  species Species @relation(fields: [id_species], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_species Int @unique  
+  
+}
+
+model Project {
+  id    Int    @id @default(autoincrement())
+  title String
+  location String
+  photo String? @map(name: "photo_url")
+  numberParticipant Int? @map(name: "number_participant")
+  description String
+  createdAt DateTime? @db.Timestamptz() @map(name:"created_at")
+
+  user User @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_user Int @unique    
+}
+
+model Article {
+  id  Int     @id @default(autoincrement())
+  title String
+  content String
+  photo String? @map(name: "photo_url")
+  createdAt DateTime? @db.Timestamptz() @map(name:"created_at")
+
+  reviews Comment[]
+  likes Like[]
+
+  user User @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_user Int  @unique
+}
+
+model Comment {
+  id  Int     @id @default(autoincrement())
+  content String
+  createdAt DateTime? @db.Timestamptz() @map(name:"created_at")
+
+  likes Like[]
+ 
+  article Article  @relation(fields: [id_article], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_article Int  @unique
+  user  User  @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_user Int  @unique
+}
+
+enum Emotion {
+LIKE
+DISLIKE
+}
+
+model Like {
+  id  Int     @id @default(autoincrement())
+  type Emotion
+
+  article Article @relation(fields: [id_article], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_article Int  @unique
+  comment Comment @relation(fields: [id_comment], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_comment Int  @unique
+  user User @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_user Int  @unique
+}
+
+model Level {
+  id  Int     @id @default(autoincrement())
+  name String 
+  quizzes Quiz[]
+}
+
+model Theme {
+  id  Int     @id @default(autoincrement())
+  name  String
+  quizzes Quiz[]
+}
+
+model Quiz {
+  id  Int   @id @default(autoincrement())
+  title String
+  photo String? @map(name: "photo_url")
+  question String
+  answer String
+  explanation String?
+  numberQuestion Int @map(name: "number_question")
+  createdAt DateTime? @db.Timestamptz() @map(name:"created_at")
+
+  user User @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_user Int  @unique
+  level Level @relation(fields: [id_level], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_level Int  @unique
+  theme Theme @relation(fields: [id_theme], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id_theme Int  @unique  
+}
