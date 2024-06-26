@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import nodemailer from "nodemailer";
+
 import { errorHandler } from "../middelware/errorHandlerMiddleware.js";
 import { authService } from "../services/authService.js";
 const prisma = new PrismaClient();
@@ -125,7 +128,9 @@ const authController = {
   passwordReset: async (req, res, next) => {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).send({ message: "champ invalide" });
+      return res
+        .status(400)
+        .send({ success: false, message: "champ invalide" });
     }
     try {
       const user = await prisma.user.findUnique({
@@ -134,12 +139,77 @@ const authController = {
         },
       });
       if (!user) {
-        return res.status(404).send({ message: "utilisateur non trouvé" });
+        return res
+          .status(404)
+          .send({ success: false, message: "utilisateur non trouvé" });
       }
+      //create token
+      const token = authService.generateJwt(email, user.pseudo, 3600);
+      // store token in database
+      await prisma.user.update({
+        where: {
+          email,
+        },
+        data: {
+          resetPasswordToken: token,
+          resetPasswordExpires: new Date(Date.now() + 3600 * 1000),
+        },
+      });
 
-      const token = authService.generateJwt(email, user.pseudo);
-      // Return a signed JWT for validation
-      return res.json({ token });
+      // Config and send email with Nodemailer
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.USER_EMAIL,
+          pass: process.env.USER_PASS,
+        },
+      });
+
+      const mailOptions = {
+        to: user.email,
+        from: process.env.USER_EMAIL,
+        subject: "Réinitialisation de mot de passe",
+        text:
+          `Vous recevez ce mail parce que vous (ou quelqu'un d'autre) avez demandé la réinitialisation du mot de passe pour votre compte.\n\n` +
+          `Veuillez cliquer sur le lien suivant, ou copiez-collez dans votre navigateur pour compléter le processus :\n\n` +
+          `http://192.168.1.101:3000/v1/passwordReset/redirectionToApp/${token}\n\n` +
+          `Si vous n'avez pas demandé cela, veuillez ignorer cet e-mail et votre mot de passe restera inchangé.\n`,
+      };
+      console.log(token);
+      await transporter.sendMail(mailOptions);
+
+      res.json({
+        success: true,
+        message:
+          "Un e-mail a été envoyé à " + user.email + " avec les instructions.",
+      });
+    } catch (error) {
+      errorHandler(error, req, res, next);
+    }
+  },
+  validatePasswordResetLink: async (req, res, next) => {
+    const { token } = req.params;
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          resetPasswordToken: token,
+        },
+      });
+      if (!user) {
+        return res
+          .status(401)
+          .send({ success: false, message: "Utilisateur non autorisé" });
+      }
+      if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
+        return res.status(401).send({
+          success: false,
+          message: "Le lien de réinitialisation du mot de passe a expiré",
+        });
+      }
+      res.status(302).redirect(`myApp://updatepassword/${token}`);
     } catch (error) {
       errorHandler(error, req, res, next);
     }

@@ -1,7 +1,7 @@
 import express from "express";
-import { projectController } from "../controllers/projetcController.js";
-import { validate } from "../middelware/validation.js";
-import { projectValidation } from "../validations/projectValidation.js";
+import { projectController } from "./src/controllers/projetcController.js";
+import { validate } from "./src/middelware/validation.js";
+import { projectValidation } from "./src/validations/projectValidation.js";
 
 const projectRouter = express.Router();
 
